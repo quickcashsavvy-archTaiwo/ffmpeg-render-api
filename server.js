@@ -6,56 +6,48 @@ const path = require("path");
 const app = express();
 app.use(express.json());
 
-app.get("/", (req, res) => {
-  res.send("FFmpeg Render API is running");
-});
-
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
 app.post("/render", async (req, res) => {
-  try {
-    const { images, audioUrl } = req.body;
+  const { images, audios } = req.body;
 
-    if (!images || !audioUrl) {
-      return res.status(400).json({ error: "images and audioUrl required" });
-    }
+  if (!images || !audios || images.length !== audios.length) {
+    return res.status(400).json({ error: "Images and audios must match." });
+  }
 
-    const workDir = "/tmp/render";
-    fs.mkdirSync(workDir, { recursive: true });
+  const workDir = path.join(__dirname, "work");
+  if (!fs.existsSync(workDir)) fs.mkdirSync(workDir);
 
-    // download images
-    for (let i = 0; i < images.length; i++) {
-      const img = path.join(workDir, `img${i}.png`);
-      await fetch(images[i])
-        .then(r => r.arrayBuffer())
-        .then(b => fs.writeFileSync(img, Buffer.from(b)));
-    }
+  const listFile = path.join(workDir, "inputs.txt");
+  let list = "";
 
-    // download audio
-    const audioPath = path.join(workDir, "audio.mp3");
-    await fetch(audioUrl)
-      .then(r => r.arrayBuffer())
-      .then(b => fs.writeFileSync(audioPath, Buffer.from(b)));
+  images.forEach((img, i) => {
+    const imgPath = path.join(workDir, `img${i}.png`);
+    const audPath = path.join(workDir, `aud${i}.mp3`);
 
-    const output = path.join(workDir, "video.mp4");
+    list += `file '${imgPath}'\n`;
+    list += `duration 3\n`;
 
-    const cmd = `ffmpeg -y -r 1 -i ${workDir}/img%d.png -i ${audioPath} -shortest -pix_fmt yuv420p ${output}`;
+    exec(`curl -L "${img}" -o "${imgPath}"`);
+    exec(`curl -L "${audios[i]}" -o "${audPath}"`);
+  });
 
-    exec(cmd, (err) => {
+  fs.writeFileSync(listFile, list);
+
+  const output = path.join(workDir, "video.mp4");
+
+  exec(
+    `ffmpeg -y -f concat -safe 0 -i ${listFile} -pix_fmt yuv420p ${output}`,
+    (err) => {
       if (err) {
         console.error(err);
-        return res.status(500).json({ error: "ffmpeg failed" });
+        return res.status(500).json({ error: "FFmpeg failed" });
       }
-
       res.sendFile(output);
-    });
-
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "server error" });
-  }
+    }
+  );
 });
 
 const PORT = process.env.PORT || 3000;
