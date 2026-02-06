@@ -2,6 +2,7 @@ const express = require("express");
 const { exec } = require("child_process");
 const fs = require("fs");
 const path = require("path");
+const axios = require("axios");
 
 const app = express();
 app.use(express.json());
@@ -9,6 +10,23 @@ app.use(express.json());
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
 });
+
+// Proper download function (WAITS until file is finished)
+async function downloadFile(url, outputPath) {
+  const writer = fs.createWriteStream(outputPath);
+  const response = await axios({
+    url,
+    method: "GET",
+    responseType: "stream",
+  });
+
+  response.data.pipe(writer);
+
+  return new Promise((resolve, reject) => {
+    writer.on("finish", resolve);
+    writer.on("error", reject);
+  });
+}
 
 app.post("/render", async (req, res) => {
   const { images, audios } = req.body;
@@ -18,21 +36,22 @@ app.post("/render", async (req, res) => {
   }
 
   const workDir = path.join(__dirname, "work");
-  if (!fs.existsSync(workDir)) fs.mkdirSync(workDir);
+  if (!fs.existsSync(workDir)) fs.mkdirSync(workDir, { recursive: true });
 
   const listFile = path.join(workDir, "inputs.txt");
   let list = "";
 
-  images.forEach((img, i) => {
+  // ✅ DOWNLOAD FIRST (and WAIT)
+  for (let i = 0; i < images.length; i++) {
     const imgPath = path.join(workDir, `img${i}.png`);
     const audPath = path.join(workDir, `aud${i}.mp3`);
 
-    list += `file '${imgPath}'\n`;
-    list += `duration 3\n`;
+    await downloadFile(images[i], imgPath);
+    await downloadFile(audios[i], audPath);
 
-    exec(`curl -L "${img}" -o "${imgPath}"`);
-    exec(`curl -L "${audios[i]}" -o "${audPath}"`);
-  });
+    list += `file '${imgPath}'\n`;
+    list += `duration 5\n`;
+  }
 
   fs.writeFileSync(listFile, list);
 
