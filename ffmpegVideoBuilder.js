@@ -2,55 +2,11 @@ const fs = require('fs');
 const { exec } = require('child_process');
 const path = require('path');
 const axios = require('axios');
+const express = require('express');
+const app = express();
+app.use(express.json());
 
-// Example input from n8n
-const images = ["scene-0.png", "scene-1.png", "scene-2.png", "scene-3.png", "scene-4.png"];
-const audios = ["scene-0.mp3", "scene-1.mp3", "scene-2.mp3", "scene-3.mp3", "scene-4.mp3"];
-const count = images.length;
-
-// Helper: download file from URL (if needed)
-async function downloadFile(url, outputPath) {
-    const writer = fs.createWriteStream(outputPath);
-    const response = await axios({ url, method: 'GET', responseType: 'stream' });
-    response.data.pipe(writer);
-    return new Promise((resolve, reject) => {
-        writer.on('finish', resolve);
-        writer.on('error', reject);
-    });
-}
-
-// Main function
-async function createVideo() {
-    const segments = [];
-
-    for (let i = 0; i < count; i++) {
-        const imagePath = images[i]; // Or downloaded path if using URLs
-        const audioPath = audios[i]; // Or downloaded path if using URLs
-        const segmentPath = `segment_${i}.mp4`;
-
-        // FFmpeg command to pair image and audio
-        const ffmpegCmd = `ffmpeg -y -loop 1 -i "${imagePath}" -i "${audioPath}" -c:v libx264 -tune stillimage -c:a aac -b:a 192k -pix_fmt yuv420p -shortest "${segmentPath}"`;
-
-        console.log(`Creating segment ${i}: ${ffmpegCmd}`);
-        await execPromise(ffmpegCmd);
-
-        segments.push(segmentPath);
-    }
-
-    // Create the concat text file
-    const concatFile = 'segments.txt';
-    fs.writeFileSync(concatFile, segments.map(s => `file '${s}'`).join('\n'));
-
-    // Concatenate all segments into final video
-    const finalVideo = 'final_video.mp4';
-    const concatCmd = `ffmpeg -y -f concat -safe 0 -i "${concatFile}" -c copy "${finalVideo}"`;
-    console.log(`Concatenating segments: ${concatCmd}`);
-    await execPromise(concatCmd);
-
-    console.log('✅ Video created successfully:', finalVideo);
-}
-
-// Helper: promisified exec
+// Promisified exec helper
 function execPromise(cmd) {
     return new Promise((resolve, reject) => {
         exec(cmd, (error, stdout, stderr) => {
@@ -64,5 +20,57 @@ function execPromise(cmd) {
     });
 }
 
-// Run
-createVideo().catch(console.error);
+// Download helper (if URLs)
+async function downloadFile(url, outputPath) {
+    const writer = fs.createWriteStream(outputPath);
+    const response = await axios({ url, method: 'GET', responseType: 'stream' });
+    response.data.pipe(writer);
+    return new Promise((resolve, reject) => {
+        writer.on('finish', resolve);
+        writer.on('error', reject);
+    });
+}
+
+app.post('/create-video', async (req, res) => {
+    try {
+        const { images, audios } = req.body;
+        if (!images || !audios || images.length !== audios.length) {
+            return res.status(400).json({ error: 'Images and audios arrays must exist and have the same length' });
+        }
+
+        const segments = [];
+
+        // Loop through each image/audio pair
+        for (let i = 0; i < images.length; i++) {
+            const imagePath = images[i]; // if URL, use downloadFile()
+            const audioPath = audios[i];
+            const segmentPath = `segment_${i}.mp4`;
+
+            const cmd = `ffmpeg -y -loop 1 -i "${imagePath}" -i "${audioPath}" -c:v libx264 -tune stillimage -c:a aac -b:a 192k -pix_fmt yuv420p -shortest "${segmentPath}"`;
+            console.log(`Creating segment ${i}`);
+            await execPromise(cmd);
+
+            segments.push(segmentPath);
+        }
+
+        // Concatenate segments
+        const concatFile = 'segments.txt';
+        fs.writeFileSync(concatFile, segments.map(s => `file '${s}'`).join('\n'));
+        const finalVideo = 'final_video.mp4';
+        await execPromise(`ffmpeg -y -f concat -safe 0 -i "${concatFile}" -c copy "${finalVideo}"`);
+
+        // Send final video path (or URL if using static hosting)
+        res.json({ video: finalVideo });
+
+        // Optional: cleanup segments
+        // segments.forEach(f => fs.unlinkSync(f));
+        // fs.unlinkSync(concatFile);
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`FFmpeg API running on port ${PORT}`));
