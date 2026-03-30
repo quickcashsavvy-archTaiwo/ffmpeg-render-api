@@ -5,7 +5,7 @@ const path = require("path");
 const axios = require("axios");
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: "50mb" })); // 🔥 important for base64 audio
 
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
@@ -28,7 +28,10 @@ async function downloadFile(url, outputPath) {
   });
 }
 
-// Render endpoint (OPTION A IMPLEMENTED)
+//////////////////////////////////////////////////////////////
+// 🔥 OLD ENDPOINT (KEEP THIS — DO NOT TOUCH)
+//////////////////////////////////////////////////////////////
+
 app.post("/render", async (req, res) => {
   try {
     const { images, audios } = req.body;
@@ -41,37 +44,26 @@ app.post("/render", async (req, res) => {
 
     const workDir = path.join(__dirname, "work");
 
-    // Create working directory
     if (!fs.existsSync(workDir)) {
       fs.mkdirSync(workDir, { recursive: true });
     }
 
     const segments = [];
 
-    // 🔥 STEP 1: Create scene videos (image + audio)
     for (let i = 0; i < images.length; i++) {
       const imgPath = path.join(workDir, `img${i}.png`);
       const audPath = path.join(workDir, `aud${i}.mp3`);
       const segmentPath = path.join(workDir, `segment_${i}.mp4`);
 
-      console.log(`Downloading image ${i}...`);
       await downloadFile(images[i], imgPath);
-
-      console.log(`Downloading audio ${i}...`);
       await downloadFile(audios[i], audPath);
-
-      console.log(`Creating segment ${i}...`);
 
       await new Promise((resolve, reject) => {
         exec(
           `ffmpeg -y -loop 1 -i "${imgPath}" -i "${audPath}" -shortest -c:v libx264 -pix_fmt yuv420p -c:a aac "${segmentPath}"`,
           (err, stdout, stderr) => {
-            if (err) {
-              console.error("FFmpeg segment error:", stderr);
-              reject(err);
-            } else {
-              resolve();
-            }
+            if (err) reject(err);
+            else resolve();
           }
         );
       });
@@ -79,7 +71,6 @@ app.post("/render", async (req, res) => {
       segments.push(segmentPath);
     }
 
-    // 🔥 STEP 2: Concatenate all scene videos
     const concatFile = path.join(workDir, "segments.txt");
 
     const concatContent = segments
@@ -90,14 +81,62 @@ app.post("/render", async (req, res) => {
 
     const finalVideo = path.join(workDir, "final_video.mp4");
 
-    console.log("Concatenating segments...");
-
     await new Promise((resolve, reject) => {
       exec(
         `ffmpeg -y -f concat -safe 0 -i "${concatFile}" -c copy "${finalVideo}"`,
+        (err) => {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
+
+    res.sendFile(finalVideo);
+  } catch (error) {
+    console.error("Render error:", error);
+    res.status(500).json({ error: "Video rendering failed." });
+  }
+});
+
+//////////////////////////////////////////////////////////////
+// 🚀 NEW ENDPOINT (VIDEO + AUDIO PER SCENE)
+//////////////////////////////////////////////////////////////
+
+app.post("/render-scene", async (req, res) => {
+  try {
+    const { video_url, audio_base64, duration } = req.body;
+
+    if (!video_url || !audio_base64 || !duration) {
+      return res.status(400).json({
+        error: "video_url, audio_base64 and duration are required",
+      });
+    }
+
+    const workDir = path.join(__dirname, "work_scene");
+
+    if (!fs.existsSync(workDir)) {
+      fs.mkdirSync(workDir, { recursive: true });
+    }
+
+    const videoPath = path.join(workDir, "video.mp4");
+    const audioPath = path.join(workDir, "audio.mp3");
+    const outputPath = path.join(workDir, "output.mp4");
+
+    console.log("Downloading video...");
+    await downloadFile(video_url, videoPath);
+
+    console.log("Saving audio...");
+    const audioBuffer = Buffer.from(audio_base64, "base64");
+    fs.writeFileSync(audioPath, audioBuffer);
+
+    console.log("Running FFmpeg...");
+
+    await new Promise((resolve, reject) => {
+      exec(
+        `ffmpeg -y -stream_loop -1 -i "${videoPath}" -i "${audioPath}" -t ${duration} -shortest -c:v libx264 -c:a aac "${outputPath}"`,
         (err, stdout, stderr) => {
           if (err) {
-            console.error("FFmpeg concat error:", stderr);
+            console.error("FFmpeg error:", stderr);
             reject(err);
           } else {
             resolve();
@@ -106,14 +145,16 @@ app.post("/render", async (req, res) => {
       );
     });
 
-    console.log("Video successfully created!");
+    console.log("Scene rendered successfully!");
 
-    res.sendFile(finalVideo);
+    res.sendFile(outputPath);
   } catch (error) {
-    console.error("Render error:", error);
-    res.status(500).json({ error: "Video rendering failed." });
+    console.error("Render scene error:", error);
+    res.status(500).json({ error: "Scene rendering failed." });
   }
 });
+
+//////////////////////////////////////////////////////////////
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("Server running on port", PORT));
