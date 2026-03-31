@@ -160,6 +160,69 @@ exec(
 });
 
 //////////////////////////////////////////////////////////////
+// 🎬 CONCAT ALL SCENE VIDEOS INTO ONE FINAL VIDEO
+//////////////////////////////////////////////////////////////
+
+app.post("/concat-scenes", async (req, res) => {
+  try {
+    const { videos } = req.body;
+
+    if (!videos || videos.length === 0) {
+      return res.status(400).json({ error: "videos array required" });
+    }
+
+    const workDir = path.join(__dirname, "work_concat");
+
+    if (!fs.existsSync(workDir)) {
+      fs.mkdirSync(workDir, { recursive: true });
+    }
+
+    const localVideos = [];
+
+    console.log("Downloading scene videos...");
+
+    // 🔥 Download each rendered scene
+    for (let i = 0; i < videos.length; i++) {
+      const videoPath = path.join(workDir, `scene_${i}.mp4`);
+      await downloadFile(videos[i], videoPath);
+      localVideos.push(videoPath);
+    }
+
+    // 🔥 Create concat list
+    const concatFile = path.join(workDir, "list.txt");
+    const content = localVideos.map(v => `file '${v}'`).join("\n");
+    fs.writeFileSync(concatFile, content);
+
+    const output = path.join(workDir, "final_video.mp4");
+
+    console.log("Merging scenes...");
+
+    // 🔥 Merge all videos
+    await new Promise((resolve, reject) => {
+      exec(
+        `ffmpeg -y -f concat -safe 0 -i "${concatFile}" -c copy "${output}"`,
+        (err, stdout, stderr) => {
+          if (err) {
+            console.error("Concat error:", stderr);
+            reject(err);
+          } else {
+            resolve();
+          }
+        }
+      );
+    });
+
+    console.log("Final video created!");
+
+    res.sendFile(output);
+
+  } catch (error) {
+    console.error("Concat endpoint error:", error);
+    res.status(500).json({ error: "Concatenation failed." });
+  }
+});
+
+//////////////////////////////////////////////////////////////
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("Server running on port", PORT));
