@@ -104,9 +104,9 @@ app.post("/render", async (req, res) => {
 
 app.post("/render-scene", async (req, res) => {
   try {
-    const { video_url, audio_base64, duration } = req.body;
+    const { video_url, audio_url, duration } = req.body;
 
-    if (!video_url || !audio_base64 || !duration) {
+if (!video_url || !audio_url || !duration) {
       return res.status(400).json({
         error: "video_url, audio_base64 and duration are required",
       });
@@ -126,8 +126,8 @@ app.post("/render-scene", async (req, res) => {
     await downloadFile(video_url, videoPath);
 
     console.log("Saving audio...");
-    const audioBuffer = Buffer.from(audio_base64, "base64");
-    fs.writeFileSync(audioPath, audioBuffer);
+    console.log("Downloading audio...");
+await downloadFile(audio_url, audioPath);
 
     console.log("Running FFmpeg...");
 
