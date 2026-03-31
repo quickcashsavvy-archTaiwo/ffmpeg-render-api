@@ -15,10 +15,14 @@ app.get("/health", (req, res) => {
 async function downloadFile(url, outputPath) {
   const writer = fs.createWriteStream(outputPath);
   const response = await axios({
-    url,
-    method: "GET",
-    responseType: "stream",
-  });
+  url,
+  method: "GET",
+  responseType: "stream",
+  maxRedirects: 5,
+  headers: {
+    "User-Agent": "Mozilla/5.0"
+  }
+});
 
   response.data.pipe(writer);
 
