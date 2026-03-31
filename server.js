@@ -137,7 +137,7 @@ await downloadFile(audio_url, audioPath);
 
     await new Promise((resolve, reject) => {
       exec(
-  `ffmpeg -y -i "${videoPath}" -i "${audioPath}" -map 0:v:0 -map 1:a:0 -t ${duration} -c:v libx264 -preset veryfast -pix_fmt yuv420p -c:a aac -shortest "${outputPath}"`,
+  `ffmpeg -y -stream_loop -1 -i "${videoPath}" -i "${audioPath}" -map 0:v:0 -map 1:a:0 -t ${duration} -c:v libx264 -preset veryfast -pix_fmt yuv420p -c:a aac "${outputPath}"`,
         (err, stdout, stderr) => {
           if (err) {
             console.error("FFmpeg error:", stderr);
