@@ -108,7 +108,7 @@ app.post("/render-scene", async (req, res) => {
 
 if (!video_url || !audio_url || !duration) {
       return res.status(400).json({
-        error: "video_url, audio_base64 and duration are required",
+        error: "video_url, audio_url and duration are required",
       });
     }
 
