@@ -223,6 +223,73 @@ app.post("/concat-scenes", async (req, res) => {
 });
 
 //////////////////////////////////////////////////////////////
+// 🎬 CONCAT MULTIPLE SCENES INTO FINAL VIDEO
+//////////////////////////////////////////////////////////////
+
+app.post("/concat-videos", async (req, res) => {
+  try {
+    const { videos } = req.body;
+
+    if (!videos || !Array.isArray(videos) || videos.length === 0) {
+      return res.status(400).json({
+        error: "videos array is required",
+      });
+    }
+
+    const workDir = path.join(__dirname, "work_concat");
+
+    if (!fs.existsSync(workDir)) {
+      fs.mkdirSync(workDir, { recursive: true });
+    }
+
+    const localVideos = [];
+
+    // 🔽 Download all videos
+    for (let i = 0; i < videos.length; i++) {
+      const videoPath = path.join(workDir, `scene_${i}.mp4`);
+      console.log(`Downloading video ${i}...`);
+
+      await downloadFile(videos[i], videoPath);
+      localVideos.push(videoPath);
+    }
+
+    // 🔽 Create concat file
+    const concatFile = path.join(workDir, "concat.txt");
+
+    const concatContent = localVideos
+      .map((video) => `file '${video}'`)
+      .join("\n");
+
+    fs.writeFileSync(concatFile, concatContent);
+
+    const outputPath = path.join(workDir, "final_video.mp4");
+
+    console.log("Running FFmpeg concat...");
+
+    await new Promise((resolve, reject) => {
+      exec(
+        `ffmpeg -y -f concat -safe 0 -i "${concatFile}" -c copy "${outputPath}"`,
+        (err, stdout, stderr) => {
+          if (err) {
+            console.error("FFmpeg concat error:", stderr);
+            reject(err);
+          } else {
+            resolve();
+          }
+        }
+      );
+    });
+
+    console.log("Final video created!");
+
+    res.sendFile(outputPath);
+  } catch (error) {
+    console.error("Concat error:", error);
+    res.status(500).json({ error: "Video concatenation failed." });
+  }
+});
+
+//////////////////////////////////////////////////////////////
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("Server running on port", PORT));
