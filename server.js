@@ -228,7 +228,7 @@ app.post("/concat-scenes", async (req, res) => {
 
 app.post("/concat-videos", async (req, res) => {
   try {
-    const { videos } = req.body;
+    const { videos, subtitles } = req.body;
 
     if (!videos || !Array.isArray(videos) || videos.length === 0) {
       return res.status(400).json({
@@ -266,19 +266,30 @@ app.post("/concat-videos", async (req, res) => {
 
     console.log("Running FFmpeg concat...");
 
-    await new Promise((resolve, reject) => {
-      exec(
-        `ffmpeg -y -f concat -safe 0 -i "${concatFile}" -c copy "${outputPath}"`,
-        (err, stdout, stderr) => {
-          if (err) {
-            console.error("FFmpeg concat error:", stderr);
-            reject(err);
-          } else {
-            resolve();
-          }
-        }
-      );
-    });
+   let ffmpegCmd;
+
+if (subtitles) {
+  const subtitlePath = path.join(workDir, "subtitles.srt");
+
+  fs.writeFileSync(subtitlePath, subtitles.replace(/\\n/g, "\n"));
+
+  console.log("Subtitles file created!");
+
+  ffmpegCmd = `ffmpeg -y -f concat -safe 0 -i "${concatFile}" -vf subtitles="${subtitlePath}" -c:v libx264 -c:a aac "${outputPath}"`;
+} else {
+  ffmpegCmd = `ffmpeg -y -f concat -safe 0 -i "${concatFile}" -c copy "${outputPath}"`;
+}
+
+await new Promise((resolve, reject) => {
+  exec(ffmpegCmd, (err, stdout, stderr) => {
+    if (err) {
+      console.error("FFmpeg error:", stderr);
+      reject(err);
+    } else {
+      resolve();
+    }
+  });
+});
 
     console.log("Final video created!");
 
