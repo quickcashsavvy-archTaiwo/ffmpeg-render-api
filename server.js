@@ -4,6 +4,36 @@ const fs = require("fs");
 const path = require("path");
 const axios = require("axios");
 
+// ✅ 👉 PASTE HERE
+function splitText(text, maxWords = 6) {
+  const words = text.split(" ");
+  const lines = [];
+
+  for (let i = 0; i < words.length; i += maxWords) {
+    lines.push(words.slice(i, i + maxWords).join(" "));
+  }
+
+  return lines;
+}
+
+function buildDrawtext(lines, duration) {
+  const durationPerLine = duration / lines.length;
+
+  return lines.map((line, i) => {
+    const start = i * durationPerLine;
+    const end = start + durationPerLine;
+
+    const safe = line
+      .replace(/:/g, "\\:")
+      .replace(/'/g, "\\'")
+      .replace(/,/g, "\\,");
+
+    return `drawtext=text='${safe}':fontcolor=white:fontsize=48:borderw=3:bordercolor=black:x=(w-text_w)/2:y=h-120:enable='between(t,${start},${end})'`;
+  }).join(",");
+}
+
+const app = express();
+
 const app = express();
 app.use(express.json({ limit: "50mb" })); // 🔥 important for base64 audio
 
@@ -108,13 +138,13 @@ app.post("/render", async (req, res) => {
 
 app.post("/render-scene", async (req, res) => {
   try {
-    const { video_url, audio_url, duration } = req.body;
+    const { video_url, audio_url, duration, narration } = req.body;
 
-if (!video_url || !audio_url || !duration) {
-      return res.status(400).json({
-        error: "video_url, audio_url and duration are required",
-      });
-    }
+if (!video_url || !audio_url || !duration || !narration) {
+  return res.status(400).json({
+    error: "video_url, audio_url, duration and narration are required",
+  });
+}
 
     const workDir = path.join(__dirname, "work_scene");
 
@@ -134,11 +164,19 @@ if (!video_url || !audio_url || !duration) {
 await downloadFile(audio_url, audioPath);
 
     console.log("Running FFmpeg...");
+    // ✅ 👉 ADD THIS HERE
+const lines = splitText(narration, 6);
+const subtitleFilter = buildDrawtext(lines, duration);
 
     await new Promise((resolve, reject) => {
       const speed = 5 / duration; // original length / target
 exec(
-  `ffmpeg -y -i "${videoPath}" -i "${audioPath}" -filter_complex "[0:v]setpts=${1/speed}*PTS[v]" -map "[v]" -map 1:a -t ${duration} -c:v libx264 -pix_fmt yuv420p -c:a aac "${outputPath}"`,
+  `ffmpeg -y -i "${videoPath}" -i "${audioPath}" \
+-filter_complex "[0:v]setpts=${1/speed}*PTS,${subtitleFilter}[v]" \
+-map "[v]" -map 1:a \
+-t ${duration} \
+-c:v libx264 -pix_fmt yuv420p -c:a aac \
+"${outputPath}"`,
         (err, stdout, stderr) => {
           if (err) {
             console.error("FFmpeg error:", stderr);
