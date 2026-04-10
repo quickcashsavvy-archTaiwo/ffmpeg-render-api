@@ -23,13 +23,15 @@ function buildDrawtext(lines, duration) {
     const start = i * durationPerLine;
     const end = start + durationPerLine;
 
-   function escapeText(text) {
+function escapeText(text) {
   return text
-    .replace(/'/g, "\\'")
-    .replace(/:/g, '\\:')
-    .replace(/"/g, '\\"')
-    .replace(/\n/g, ' ')
-    .replace(/\r/g, '');
+    .replace(/'/g, "")
+    .replace(/:/g, "")
+    .replace(/"/g, "")
+    .replace(/,/g, "")
+    .replace(/[^\w\s]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
     return `drawtext=text='${safe}':fontcolor=white:fontsize=48:borderw=3:bordercolor=black:x=(w-text_w)/2:y=h-120:enable='between(t,${start},${end})'`;
@@ -171,7 +173,7 @@ await downloadFile(audio_url, audioPath);
 let subtitleFilter = "";
 
 if (narration && narration.trim() !== "") {
-const safeNarration = escapeText(narration);
+const safeNarration = escapeText(narration || "");
 const lines = splitText(safeNarration, 6);
   subtitleFilter = buildDrawtext(lines, duration);
 } else {
