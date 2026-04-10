@@ -23,13 +23,14 @@ function buildDrawtext(lines, duration) {
     const start = i * durationPerLine;
     const end = start + durationPerLine;
 
-   const safe = line
-  .replace(/\\/g, "\\\\")   // escape backslashes
-  .replace(/'/g, "\\'")
-  .replace(/:/g, "\\:")
-  .replace(/,/g, "\\,")
-  .replace(/\n/g, " ")
-  .replace(/\r/g, " ");
+   function escapeText(text) {
+  return text
+    .replace(/'/g, "\\'")
+    .replace(/:/g, '\\:')
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, ' ')
+    .replace(/\r/g, '');
+}
 
     return `drawtext=text='${safe}':fontcolor=white:fontsize=48:borderw=3:bordercolor=black:x=(w-text_w)/2:y=h-120:enable='between(t,${start},${end})'`;
   }).join(",");
@@ -170,7 +171,8 @@ await downloadFile(audio_url, audioPath);
 let subtitleFilter = "";
 
 if (narration && narration.trim() !== "") {
-  const lines = splitText(narration, 6);
+const safeNarration = escapeText(narration);
+const lines = splitText(safeNarration, 6);
   subtitleFilter = buildDrawtext(lines, duration);
 } else {
   console.log("⚠️ Empty narration, skipping subtitles");
