@@ -23,10 +23,13 @@ function buildDrawtext(lines, duration) {
     const start = i * durationPerLine;
     const end = start + durationPerLine;
 
-    const safe = line
-      .replace(/:/g, "\\:")
-      .replace(/'/g, "\\'")
-      .replace(/,/g, "\\,");
+   const safe = line
+  .replace(/\\/g, "\\\\")   // escape backslashes
+  .replace(/'/g, "\\'")
+  .replace(/:/g, "\\:")
+  .replace(/,/g, "\\,")
+  .replace(/\n/g, " ")
+  .replace(/\r/g, " ");
 
     return `drawtext=text='${safe}':fontcolor=white:fontsize=48:borderw=3:bordercolor=black:x=(w-text_w)/2:y=h-120:enable='between(t,${start},${end})'`;
   }).join(",");
@@ -162,20 +165,28 @@ if (!video_url || !audio_url || !duration || !narration) {
 await downloadFile(audio_url, audioPath);
 
     console.log("Running FFmpeg...");
-    // ✅ 👉 ADD THIS HERE
-const lines = splitText(narration, 6);
-const subtitleFilter = buildDrawtext(lines, duration);
+   
+// ✅ FIX STARTS HERE
+let subtitleFilter = "";
 
+if (narration && narration.trim() !== "") {
+  const lines = splitText(narration, 6);
+  subtitleFilter = buildDrawtext(lines, duration);
+} else {
+  console.log("⚠️ Empty narration, skipping subtitles");
+}
+// ✅ FIX ENDS HERE
     await new Promise((resolve, reject) => {
       const speed = 5 / duration; // original length / target
 exec(
   `ffmpeg -y -i "${videoPath}" -i "${audioPath}" \
--filter_complex "[0:v]setpts=${1/speed}*PTS,${subtitleFilter}[v]" \
+-filter_complex "[0:v]setpts=${1/speed}*PTS${subtitleFilter ? ',' + subtitleFilter : ''}[v]" \
 -map "[v]" -map 1:a \
 -t ${duration} \
 -c:v libx264 -pix_fmt yuv420p -c:a aac \
 "${outputPath}"`,
         (err, stdout, stderr) => {
+           console.error("🔥 FFMPEG STDERR:", stderr);
           if (err) {
             console.error("FFmpeg error:", stderr);
             reject(err);
@@ -190,7 +201,7 @@ exec(
 
     res.sendFile(outputPath);
   } catch (error) {
-    console.error("Render scene error:", error);
+    console.error("🔥 FULL ERROR:", error);
     res.status(500).json({ error: "Scene rendering failed." });
   }
 });
