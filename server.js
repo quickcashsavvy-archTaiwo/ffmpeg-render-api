@@ -177,10 +177,31 @@ if (narration && narration.trim() !== "") {
 }
 // ✅ FIX ENDS HERE
     await new Promise((resolve, reject) => {
-      const speed = 5 / duration; // original length / target
+      // 🔥 HYBRID: Stretch + Freeze (BEST SOLUTION)
+
+// Original scene length (your videos are ~5s)
+const originalDuration = 5;
+
+// Calculate stretch factor
+let stretchFactor = duration / originalDuration;
+
+// Clamp stretch (VERY IMPORTANT)
+if (stretchFactor > 2) stretchFactor = 2;
+
+// Calculate durations
+const stretchedDuration = originalDuration * stretchFactor;
+const freezeDuration = duration - stretchedDuration;
+
+// Build filter
+const filter = subtitleFilter
+  ? `[0:v]setpts=${1/stretchFactor}*PTS,` +
+    `tpad=stop_mode=clone:stop_duration=${freezeDuration},` +
+    `${subtitleFilter}[v]`
+  : `[0:v]setpts=${1/stretchFactor}*PTS,` +
+    `tpad=stop_mode=clone:stop_duration=${freezeDuration}[v]`;
 exec(
   `ffmpeg -y -i "${videoPath}" -i "${audioPath}" \
--filter_complex "[0:v]setpts=${1/speed}*PTS${subtitleFilter ? ',' + subtitleFilter : ''}[v]" \
+-filter_complex "${filter}" \
 -map "[v]" -map 1:a \
 -t ${duration} \
 -c:v libx264 -pix_fmt yuv420p -c:a aac \
