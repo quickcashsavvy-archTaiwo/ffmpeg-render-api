@@ -33,8 +33,6 @@ function buildDrawtext(lines, duration) {
 }
 
 const app = express();
-
-const app = express();
 app.use(express.json({ limit: "50mb" })); // 🔥 important for base64 audio
 
 app.get("/health", (req, res) => {
