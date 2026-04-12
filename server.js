@@ -34,7 +34,7 @@ function buildDrawtext(lines, duration) {
     const start = i * durationPerLine;
     const end = start + durationPerLine;
 
-    return `drawtext=text='${safe}':fontcolor=white:fontsize=48:borderw=3:bordercolor=black:x=(w-text_w)/2:y=h-120:enable='between(t,${start},${end})'`;
+    return `drawtext=text='${line}':fontcolor=white:fontsize=48:borderw=3:bordercolor=black:x=(w-text_w)/2:y=h-120:enable='between(t,${start},${end})'`;
   }).join(",");
 }
 
