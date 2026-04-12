@@ -4,6 +4,17 @@ const fs = require("fs");
 const path = require("path");
 const axios = require("axios");
 
+function escapeText(text) {
+  return text
+    .replace(/'/g, "")
+    .replace(/:/g, "")
+    .replace(/"/g, "")
+    .replace(/,/g, "")
+    .replace(/[^\w\s]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 // ✅ 👉 PASTE HERE
 function splitText(text, maxWords = 6) {
   const words = text.split(" ");
@@ -22,17 +33,6 @@ function buildDrawtext(lines, duration) {
   return lines.map((line, i) => {
     const start = i * durationPerLine;
     const end = start + durationPerLine;
-
-function escapeText(text) {
-  return text
-    .replace(/'/g, "")
-    .replace(/:/g, "")
-    .replace(/"/g, "")
-    .replace(/,/g, "")
-    .replace(/[^\w\s]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
     return `drawtext=text='${safe}':fontcolor=white:fontsize=48:borderw=3:bordercolor=black:x=(w-text_w)/2:y=h-120:enable='between(t,${start},${end})'`;
   }).join(",");
