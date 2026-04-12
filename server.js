@@ -6,13 +6,11 @@ const axios = require("axios");
 
 function escapeText(text) {
   return text
-    .replace(/'/g, "")
-    .replace(/:/g, "")
-    .replace(/"/g, "")
-    .replace(/,/g, "")
-    .replace(/[^\w\s]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+    .replace(/'/g, "\\'")
+    .replace(/:/g, "\\:")
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, " ")
+    .replace(/\r/g, "");
 }
 
 // ✅ 👉 PASTE HERE
@@ -28,7 +26,10 @@ function splitText(text, maxWords = 6) {
 }
 
 function buildDrawtext(lines, duration) {
-  const durationPerLine = duration / lines.length;
+  const minTimePerLine = 2; // 🔥 readable
+  const totalLines = lines.length;
+
+  const durationPerLine = Math.max(duration / totalLines, minTimePerLine);
 
   return lines.map((line, i) => {
     const start = i * durationPerLine;
@@ -181,28 +182,28 @@ const lines = splitText(safeNarration, 6);
 }
 // ✅ FIX ENDS HERE
     await new Promise((resolve, reject) => {
-      // 🔥 HYBRID: Stretch + Freeze (BEST SOLUTION)
+      // ✅ GET REAL VIDEO DURATION
+const getVideoDuration = (videoPath) => {
+  return new Promise((resolve, reject) => {
+    exec(
+      `ffprobe -v error -select_streams v:0 -show_entries stream=duration -of default=noprint_wrappers=1:nokey=1 "${videoPath}"`,
+      (err, stdout) => {
+        if (err) reject(err);
+        else resolve(parseFloat(stdout));
+      }
+    );
+  });
+};
 
-// Original scene length (your videos are ~5s)
-const originalDuration = 5;
+const originalDuration = await getVideoDuration(videoPath);
 
-// Calculate stretch factor
-let stretchFactor = duration / originalDuration;
+// ✅ STRETCH FACTOR (NO LIMIT ❌)
+const stretchFactor = duration / originalDuration;
 
-// Clamp stretch (VERY IMPORTANT)
-if (stretchFactor > 2) stretchFactor = 2;
-
-// Calculate durations
-const stretchedDuration = originalDuration * stretchFactor;
-const freezeDuration = duration - stretchedDuration;
-
-// Build filter
+// ✅ BUILD FILTER (PURE STRETCH)
 const filter = subtitleFilter
-  ? `[0:v]setpts=${1/stretchFactor}*PTS,` +
-    `tpad=stop_mode=clone:stop_duration=${freezeDuration},` +
-    `${subtitleFilter}[v]`
-  : `[0:v]setpts=${1/stretchFactor}*PTS,` +
-    `tpad=stop_mode=clone:stop_duration=${freezeDuration}[v]`;
+  ? `[0:v]setpts=${stretchFactor}*PTS,${subtitleFilter}[v]`
+  : `[0:v]setpts=${stretchFactor}*PTS[v]`;
 exec(
   `ffmpeg -y -i "${videoPath}" -i "${audioPath}" \
 -filter_complex "${filter}" \
