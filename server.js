@@ -200,8 +200,6 @@ const filter = subtitleFilter
   ? `[0:v]setpts=${stretchFactor}*PTS,${subtitleFilter}[v]`
   : `[0:v]setpts=${stretchFactor}*PTS[v]`;
 
-const originalDuration = await getVideoDuration(videoPath);
-
 // ✅ STRETCH FACTOR (NO LIMIT ❌)
 const stretchFactor = duration / originalDuration;
 
