@@ -227,8 +227,6 @@ await new Promise((resolve, reject) => {
 
     console.log("Scene rendered successfully!");
 
-   const fs = require("fs");
-
 const fileBuffer = fs.readFileSync(outputPath);
 
 res.setHeader("Content-Type", "video/mp4");
