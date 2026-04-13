@@ -6,13 +6,13 @@ const axios = require("axios");
 
 function escapeText(text) {
   return text
-    .replace(/\\/g, "\\\\")   // escape backslash FIRST
-    .replace(/'/g, "\\\\'")   // apostrophe FIX (VERY IMPORTANT)
-    .replace(/:/g, "\\:")     // colon
-    .replace(/"/g, '\\"')     // double quotes
-    .replace(/,/g, "\\,")     // commas
-    .replace(/\n/g, " ")
-    .replace(/\r/g, "");
+    .replace(/\\/g, '\\\\')     // backslash
+    .replace(/:/g, '\\\\:')     // 🔥 DOUBLE escape colon (VERY IMPORTANT)
+    .replace(/'/g, "\\\\'")
+    .replace(/,/g, '\\\\,')     // 🔥 also escape comma
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, ' ')
+    .replace(/\r/g, '');
 }
 
 // ✅ 👉 PASTE HERE
@@ -39,7 +39,7 @@ function buildDrawtext(lines, duration) {
 
     const safe = escapeText(line); // ✅ THIS WAS MISSING
 
-    return `drawtext=text=${safe}:fontcolor=white:fontsize=48:borderw=3:bordercolor=black:x=(w-text_w)/2:y=h-120:enable='between(t,${start},${end})'`;
+    return `drawtext=text='${safe}':fontcolor=white:fontsize=48:borderw=3:bordercolor=black:x=(w-text_w)/2:y=h-120:enable='between(t,${start},${end})'`;
   }).join(",");
 }
 
