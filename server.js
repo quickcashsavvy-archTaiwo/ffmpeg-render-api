@@ -199,11 +199,7 @@ const stretchFactor = duration / originalDuration;
 const filter = subtitleFilter
   ? `[0:v]setpts=${stretchFactor}*PTS,${subtitleFilter}[v]`
   : `[0:v]setpts=${stretchFactor}*PTS[v]`;
-
-// ✅ BUILD FILTER (PURE STRETCH)
-const filter = subtitleFilter
-  ? `[0:v]setpts=${stretchFactor}*PTS,${subtitleFilter}[v]`
-  : `[0:v]setpts=${stretchFactor}*PTS[v]`;
+    
 exec(
   `ffmpeg -y -i "${videoPath}" -i "${audioPath}" \
 -filter_complex "${filter}" \
