@@ -28,7 +28,7 @@ function splitText(text, maxWords = 6) {
 }
 
 function buildDrawtext(lines, duration) {
-  const minTimePerLine = 2; // 🔥 readable
+  const minTimePerLine = 2;
   const totalLines = lines.length;
 
   const durationPerLine = Math.max(duration / totalLines, minTimePerLine);
@@ -37,7 +37,9 @@ function buildDrawtext(lines, duration) {
     const start = i * durationPerLine;
     const end = start + durationPerLine;
 
-    return drawtext=text=${safe}:fontcolor=white:fontsize=48:borderw=3:bordercolor=black:x=(w-text_w)/2:y=h-120:enable='between(t,${start},${end})'`;
+    const safe = escapeText(line); // ✅ THIS WAS MISSING
+
+    return `drawtext=text=${safe}:fontcolor=white:fontsize=48:borderw=3:bordercolor=black:x=(w-text_w)/2:y=h-120:enable='between(t,${start},${end})'`;
   }).join(",");
 }
 
