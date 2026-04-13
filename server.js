@@ -180,9 +180,7 @@ const lines = splitText(safeNarration, 6);
 } else {
   console.log("⚠️ Empty narration, skipping subtitles");
 }
-// ✅ FIX ENDS HERE
-    await new Promise((resolve, reject) => {
-      // ✅ GET REAL VIDEO DURATION
+    // ✅ GET REAL VIDEO DURATION (CORRECT PLACE)
 const getVideoDuration = (videoPath) => {
   return new Promise((resolve, reject) => {
     exec(
@@ -194,6 +192,13 @@ const getVideoDuration = (videoPath) => {
     );
   });
 };
+
+const originalDuration = await getVideoDuration(videoPath);
+const stretchFactor = duration / originalDuration;
+
+const filter = subtitleFilter
+  ? `[0:v]setpts=${stretchFactor}*PTS,${subtitleFilter}[v]`
+  : `[0:v]setpts=${stretchFactor}*PTS[v]`;
 
 const originalDuration = await getVideoDuration(videoPath);
 
