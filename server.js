@@ -155,7 +155,7 @@ if (!video_url || !audio_url || !duration || !narration) {
   });
 }
 
-    const workDir = path.join(__dirname, "work_scene");
+    const workDir = path.join(__dirname, `work_scene_${Date.now()}`);
 
     if (!fs.existsSync(workDir)) {
       fs.mkdirSync(workDir, { recursive: true });
@@ -227,7 +227,14 @@ await new Promise((resolve, reject) => {
 
     console.log("Scene rendered successfully!");
 
-    res.download(outputPath);
+   const fs = require("fs");
+
+const fileBuffer = fs.readFileSync(outputPath);
+
+res.setHeader("Content-Type", "video/mp4");
+res.setHeader("Content-Length", fileBuffer.length);
+
+res.end(fileBuffer);
   } catch (error) {
     console.error("🔥 FULL ERROR:", error);
     res.status(500).json({ error: "Scene rendering failed." });
