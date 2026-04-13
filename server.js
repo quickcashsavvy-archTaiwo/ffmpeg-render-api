@@ -6,9 +6,11 @@ const axios = require("axios");
 
 function escapeText(text) {
   return text
-    .replace(/'/g, "\\'")
-    .replace(/:/g, "\\:")
-    .replace(/"/g, '\\"')
+    .replace(/\\/g, "\\\\")   // escape backslash FIRST
+    .replace(/'/g, "\\\\'")   // apostrophe FIX (VERY IMPORTANT)
+    .replace(/:/g, "\\:")     // colon
+    .replace(/"/g, '\\"')     // double quotes
+    .replace(/,/g, "\\,")     // commas
     .replace(/\n/g, " ")
     .replace(/\r/g, "");
 }
