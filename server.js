@@ -225,7 +225,7 @@ await new Promise((resolve, reject) => {
 
     console.log("Scene rendered successfully!");
 
-    res.sendFile(outputPath);
+    res.download(outputPath);
   } catch (error) {
     console.error("🔥 FULL ERROR:", error);
     res.status(500).json({ error: "Scene rendering failed." });
