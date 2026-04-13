@@ -200,24 +200,26 @@ const filter = subtitleFilter
   ? `[0:v]setpts=${stretchFactor}*PTS,${subtitleFilter}[v]`
   : `[0:v]setpts=${stretchFactor}*PTS[v]`;
     
-exec(
-  `ffmpeg -y -i "${videoPath}" -i "${audioPath}" \
+await new Promise((resolve, reject) => {
+  exec(
+    `ffmpeg -y -i "${videoPath}" -i "${audioPath}" \
 -filter_complex "${filter}" \
 -map "[v]" -map 1:a \
 -t ${duration} \
 -c:v libx264 -pix_fmt yuv420p -c:a aac \
 "${outputPath}"`,
-        (err, stdout, stderr) => {
-           console.error("🔥 FFMPEG STDERR:", stderr);
-          if (err) {
-            console.error("FFmpeg error:", stderr);
-            reject(err);
-          } else {
-            resolve();
-          }
-        }
-      );
-    });
+    (err, stdout, stderr) => {
+      console.error("🔥 FFMPEG STDERR:", stderr);
+
+      if (err) {
+        console.error("FFmpeg error:", stderr);
+        return reject(err);
+      }
+
+      resolve();
+    }
+  );
+});
 
     console.log("Scene rendered successfully!");
 
