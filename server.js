@@ -227,12 +227,16 @@ await new Promise((resolve, reject) => {
 
     console.log("Scene rendered successfully!");
 
-const fileBuffer = fs.readFileSync(outputPath);
+const stream = fs.createReadStream(outputPath);
 
 res.setHeader("Content-Type", "video/mp4");
-res.setHeader("Content-Length", fileBuffer.length);
 
-res.end(fileBuffer);
+stream.pipe(res);
+
+stream.on("error", (err) => {
+  console.error("❌ Stream error:", err);
+  res.status(500).end("Stream failed");
+});
   } catch (error) {
     console.error("🔥 FULL ERROR:", error);
     res.status(500).json({ error: "Scene rendering failed." });
