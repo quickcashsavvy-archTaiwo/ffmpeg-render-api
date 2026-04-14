@@ -6,11 +6,10 @@ const axios = require("axios");
 
 function escapeText(text) {
   return text
-    .replace(/\\/g, '\\\\')     // backslash
-    .replace(/:/g, '\\\\:')     // 🔥 DOUBLE escape colon (VERY IMPORTANT)
-    .replace(/'/g, "\\\\'")
-    .replace(/,/g, '\\\\,')     // 🔥 also escape comma
+    .replace(/'/g, "")        // ✅ REMOVE apostrophes completely (IMPORTANT)
+    .replace(/:/g, '\\:')
     .replace(/"/g, '\\"')
+    .replace(/,/g, '\\,')     // ✅ VERY IMPORTANT
     .replace(/\n/g, ' ')
     .replace(/\r/g, '');
 }
