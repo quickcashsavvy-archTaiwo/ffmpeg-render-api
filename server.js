@@ -384,6 +384,75 @@ await new Promise((resolve, reject) => {
 });
 
 //////////////////////////////////////////////////////////////
+// 📱 CONVERT FINAL VIDEO TO YOUTUBE SHORTS (9:16 VERTICAL)
+//////////////////////////////////////////////////////////////
+
+app.post("/convert-to-shorts", async (req, res) => {
+  try {
+    const { video_url } = req.body;
+
+    if (!video_url) {
+      return res.status(400).json({ error: "video_url is required" });
+    }
+
+    const workDir = path.join(__dirname, `work_shorts_${Date.now()}`);
+    if (!fs.existsSync(workDir)) {
+      fs.mkdirSync(workDir, { recursive: true });
+    }
+
+    const inputPath  = path.join(workDir, "input.mp4");
+    const outputPath = path.join(workDir, "shorts.mp4");
+
+    console.log("Downloading video for Shorts conversion...");
+    await downloadFile(video_url, inputPath);
+
+    console.log("Converting to 9:16 vertical format...");
+
+    // FFmpeg crop command explained:
+    // 1. Get the input video (16:9 landscape)
+    // 2. crop=ih*9/16:ih:(iw-ih*9/16)/2:0
+    //    - New width  = input height × (9/16) — correct width for 9:16
+    //    - New height = input height — keep full height
+    //    - X offset   = (input width - new width) / 2 — crop equally from left and right (centre crop)
+    //    - Y offset   = 0 — start from top
+    // 3. scale=1080:1920 — resize to standard Shorts resolution
+    // 4. Result: a perfectly centred vertical crop, 1080×1920, YouTube Shorts ready
+
+    const ffmpegCmd = `ffmpeg -y -i "${inputPath}" \
+-vf "crop=ih*9/16:ih:(iw-ih*9/16)/2:0,scale=1080:1920" \
+-c:v libx264 -pix_fmt yuv420p -c:a aac -movflags +faststart \
+"${outputPath}"`;
+
+    await new Promise((resolve, reject) => {
+      exec(ffmpegCmd, (err, stdout, stderr) => {
+        console.error("FFmpeg STDERR:", stderr);
+        if (err) {
+          console.error("Shorts conversion error:", stderr);
+          return reject(err);
+        }
+        resolve();
+      });
+    });
+
+    console.log("Shorts video created successfully!");
+
+    res.setHeader("Content-Type", "video/mp4");
+    res.setHeader("Content-Disposition", "attachment; filename=shorts.mp4");
+
+    const stream = fs.createReadStream(outputPath);
+    stream.pipe(res);
+
+    stream.on("error", (err) => {
+      console.error("Stream error:", err);
+      res.status(500).end("Stream failed");
+    });
+
+  } catch (error) {
+    console.error("Shorts conversion error:", error);
+    res.status(500).json({ error: "Shorts conversion failed." });
+  }
+});
+//////////////////////////////////////////////////////////////
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("Server running on port", PORT));
