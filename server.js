@@ -418,12 +418,12 @@ app.post("/convert-to-shorts", async (req, res) => {
     // 3. scale=1080:1920 — resize to standard Shorts resolution
     // 4. Result: a perfectly centred vertical crop, 1080×1920, YouTube Shorts ready
 
-    const ffmpegCmd = `ffmpeg -y -i "${inputPath}" \
--t ${trim_duration} \
+    const ffmpegCmd = `ffmpeg -y -ss 0 -i "${inputPath}" \
 -vf "crop=ih*9/16:ih:(iw-ih*9/16)/2:0,scale=1080:1920" \
+-t ${trim_duration} \
 -c:v libx264 -pix_fmt yuv420p -c:a aac -movflags +faststart \
 "${outputPath}"`;
-
+    
     await new Promise((resolve, reject) => {
       exec(ffmpegCmd, (err, stdout, stderr) => {
         console.error("FFmpeg STDERR:", stderr);
