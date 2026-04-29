@@ -389,7 +389,7 @@ await new Promise((resolve, reject) => {
 
 app.post("/convert-to-shorts", async (req, res) => {
   try {
-    const { video_url } = req.body;
+  const { video_url, trim_duration = 40 } = req.body;
 
     if (!video_url) {
       return res.status(400).json({ error: "video_url is required" });
@@ -419,6 +419,7 @@ app.post("/convert-to-shorts", async (req, res) => {
     // 4. Result: a perfectly centred vertical crop, 1080×1920, YouTube Shorts ready
 
     const ffmpegCmd = `ffmpeg -y -i "${inputPath}" \
+-t ${trim_duration} \
 -vf "crop=ih*9/16:ih:(iw-ih*9/16)/2:0,scale=1080:1920" \
 -c:v libx264 -pix_fmt yuv420p -c:a aac -movflags +faststart \
 "${outputPath}"`;
