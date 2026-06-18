@@ -243,6 +243,86 @@ stream.on("error", (err) => {
 });
 
 //////////////////////////////////////////////////////////////
+// 🖼️ RENDER SCENE FROM STATIC IMAGE + AUDIO
+//////////////////////////////////////////////////////////////
+
+app.post("/render-image-scene", async (req, res) => {
+  try {
+    const { image_url, audio_url, duration, narration } = req.body;
+
+    if (!image_url || !audio_url || !duration || !narration) {
+      return res.status(400).json({
+        error: "image_url, audio_url, duration and narration are required",
+      });
+    }
+
+    const workDir = path.join(__dirname, `work_imgscene_${Date.now()}`);
+    if (!fs.existsSync(workDir)) {
+      fs.mkdirSync(workDir, { recursive: true });
+    }
+
+    const imagePath = path.join(workDir, "image.png");
+    const audioPath = path.join(workDir, "audio.mp3");
+    const outputPath = path.join(workDir, "output.mp4");
+
+    console.log("Downloading image...");
+    await downloadFile(image_url, imagePath);
+
+    console.log("Downloading audio...");
+    await downloadFile(audio_url, audioPath);
+
+    console.log("Building subtitle filter...");
+    let subtitleFilter = "";
+    if (narration && narration.trim() !== "") {
+      const safeNarration = escapeText(narration);
+      const lines = splitText(safeNarration, 6);
+      subtitleFilter = buildDrawtext(lines, duration);
+    }
+
+    // Scale + pad to 1920x1080, then optionally add subtitles
+    const scaleFilter = "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2";
+
+    const filterComplex = subtitleFilter
+      ? `[0:v]${scaleFilter},${subtitleFilter}[v]`
+      : `[0:v]${scaleFilter}[v]`;
+
+    console.log("Running FFmpeg...");
+    await new Promise((resolve, reject) => {
+      exec(
+        `ffmpeg -y -loop 1 -i "${imagePath}" -i "${audioPath}" \
+-filter_complex "${filterComplex}" \
+-map "[v]" -map 1:a \
+-c:v libx264 -pix_fmt yuv420p -c:a aac \
+-shortest -t ${duration} \
+"${outputPath}"`,
+        (err, stdout, stderr) => {
+          console.error("🔥 FFMPEG STDERR:", stderr);
+          if (err) {
+            console.error("FFmpeg error:", stderr);
+            return reject(err);
+          }
+          resolve();
+        }
+      );
+    });
+
+    console.log("Image scene rendered successfully!");
+
+    res.setHeader("Content-Type", "video/mp4");
+    const stream = fs.createReadStream(outputPath);
+    stream.pipe(res);
+    stream.on("error", (err) => {
+      console.error("❌ Stream error:", err);
+      res.status(500).end("Stream failed");
+    });
+
+  } catch (error) {
+    console.error("🔥 FULL ERROR:", error);
+    res.status(500).json({ error: "Image scene rendering failed." });
+  }
+});
+
+//////////////////////////////////////////////////////////////
 // 🎬 CONCAT ALL SCENE VIDEOS INTO ONE FINAL VIDEO
 //////////////////////////////////////////////////////////////
 
